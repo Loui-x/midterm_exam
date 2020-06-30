@@ -22,18 +22,50 @@ exports.index = async (req, res) => {
 }
 
 
-exports.show = (req, res) => {}
+exports.show = async (req, res) =>{try {
+    const reservations = await reservation.findById(req.params.id)
+      .populate('user');
+    console.log(reservation);
+    res.render(`${viewPath}/show`, {
+      pageTitle: reservation.title,
+      
+    });
+  } catch (error) {
+    req.flash('danger', `There was an error displaying this reservation: ${error}`);
+    res.redirect('/');
+  }
+};
 
 
-exports.edit = (req, res) => {}
+
+exports.edit = async(req, res) => {try {
+    const reservation = await reservation.findById(req.params.id);
+    res.render(`${viewPath}/edit`, {
+      pageTitle: reservation.title,
+      formData: reservation
+    });
+  } catch (error) {
+    req.flash('danger', `There was an error accessing this reservation: ${error}`);
+    res.redirect('/');
+  }}
 
 
-exports.delete = (req, res) => {}
+exports.delete = async(req, res) => {
+    try {
+    console.log(req.body);
+    await reservation.deleteOne({_id: req.body.id});
+    req.flash('success', 'The reservation was deleted successfully');
+    res.redirect(`/reservations`);
+  } catch (error) {
+    req.flash('danger', `There was an error deleting this reservation: ${error}`);
+    res.redirect(`/reservations`);
+  }
+};
 
 
 exports.new = (req, res) => {
     res.render(`${viewPath}/new`, {
-        pageTitle: 'Reservstion'
+        pageTitle: 'Reservation detail'
        })
 }
 
@@ -56,4 +88,20 @@ exports.create = async  (req, res) => {console.log(req.session.passport);
 };
 
 
-exports.update = (req, res) => {}
+exports.update = async(req, res) => { try {
+    const { user: email } = req.session.passport;
+    const user = await User.findOne({email: email});
+    console.log('got the user', user)
+    let reservation = await reservation.findById(req.body.id);
+    if (!reservation) throw new Error('Reservation could not be found');
+
+    const attributes = {user: user._id, ...req.body};
+    await reservation.validate(attributes);
+    await reservation.findByIdAndUpdate(attributes.id, attributes);
+
+    req.flash('success', 'The reservation was changed successfully');
+    res.redirect(`/reservations/${req.body.id}`);
+  } catch (error) {
+    req.flash('danger', `There was an error updating this reservation: ${error}`);
+    res.redirect(`/reservation/${req.body.id}/edit`);
+  }};
